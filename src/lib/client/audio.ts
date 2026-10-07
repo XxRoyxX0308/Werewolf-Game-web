@@ -1,5 +1,7 @@
 'use client';
 
+import type { Lang } from '@/game/i18n';
+
 let ctx: AudioContext | null = null;
 
 function audio(): AudioContext | null {
@@ -66,7 +68,7 @@ export function sfx(kind: Sfx) {
 }
 
 /** 法官語音：使用瀏覽器內建的語音合成朗讀旁白 */
-export function speak(text: string) {
+export function speak(text: string, lang: Lang) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window) || !text) return;
   try {
     const synth = window.speechSynthesis;
@@ -74,11 +76,13 @@ export function speak(text: string) {
     const u = new SpeechSynthesisUtterance(text);
     const voices = synth.getVoices();
     const voice =
-      voices.find((v) => /zh[-_]TW/i.test(v.lang)) ??
-      voices.find((v) => /zh[-_]HK/i.test(v.lang)) ??
-      voices.find((v) => /^zh/i.test(v.lang));
+      lang === 'en'
+        ? (voices.find((v) => /en[-_]US/i.test(v.lang)) ?? voices.find((v) => /^en/i.test(v.lang)))
+        : (voices.find((v) => /zh[-_]TW/i.test(v.lang)) ??
+          voices.find((v) => /zh[-_]HK/i.test(v.lang)) ??
+          voices.find((v) => /^zh/i.test(v.lang)));
     if (voice) u.voice = voice;
-    u.lang = voice?.lang ?? 'zh-TW';
+    u.lang = voice?.lang ?? (lang === 'en' ? 'en-US' : 'zh-TW');
     u.rate = 1.02;
     u.pitch = 0.85;
     u.volume = 0.9;

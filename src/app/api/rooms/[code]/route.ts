@@ -1,6 +1,6 @@
 import { viewFor } from '@/game/view';
 import { handle, json, normCode } from '@/lib/http';
-import { advance, peek, waitForChange } from '@/lib/rooms';
+import { NotFoundError, advance, peek, waitForChange } from '@/lib/rooms';
 import { type Row, getStore } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,7 @@ const POLL_MS = 800;
  * 遊戲沒有常駐伺服器，計時器到期與電腦玩家行動也在這裡順便推進。
  */
 export async function GET(req: Request, ctx: { params: Promise<{ code: string }> }) {
-  return handle(async () => {
+  return handle(req, async (lang) => {
     const code = normCode((await ctx.params).code);
     const url = new URL(req.url);
     // 金鑰放在標頭，避免出現在網址與存取紀錄中
@@ -26,17 +26,17 @@ export async function GET(req: Request, ctx: { params: Promise<{ code: string }>
 
     for (;;) {
       let meta = await peek(code);
-      if (!meta) return json({ error: '找不到這個房間' }, 404);
+      if (!meta) throw new NotFoundError();
       let row: Row | null = null;
       if (meta.wakeAt !== null && meta.wakeAt <= Date.now()) {
         row = await advance(code);
-        if (!row) return json({ error: '找不到這個房間' }, 404);
+        if (!row) throw new NotFoundError();
         meta = row;
       }
       if (meta.version !== since) {
         row ??= await getStore().get(code);
-        if (!row) return json({ error: '找不到這個房間' }, 404);
-        return json(viewFor(row.state, token, row.version, Date.now()));
+        if (!row) throw new NotFoundError();
+        return json(viewFor(row.state, token, row.version, Date.now(), lang));
       }
       const left = HOLD_MS - (Date.now() - started);
       if (left <= 0 || req.signal.aborted) return new Response(null, { status: 204 });

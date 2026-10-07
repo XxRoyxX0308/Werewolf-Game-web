@@ -1,3 +1,5 @@
+import type { LText, Lang } from './i18n';
+
 export type Camp = 'good' | 'wolf' | 'third';
 export type RoleKind = 'villager' | 'god' | 'wolf' | 'third';
 
@@ -76,12 +78,12 @@ export type DeathCause =
 
 export interface RoleDef {
   id: RoleId;
-  name: string;
+  name: LText;
   camp: Camp;
   kind: RoleKind;
   icon: string;
-  short: string;
-  desc: string;
+  short: LText;
+  desc: LText;
 }
 
 export interface Config {
@@ -228,36 +230,42 @@ export type FlowItem =
   | { t: 'sheriffTally' }
   | { t: 'resume'; stage: Stage; remain: number };
 
-export interface LogEntry {
+// 以下幾種內容會保存在房間狀態裡，文字每種語言各存一份（T = LText）；
+// 送給玩家的畫面則只帶他所選語言的版本（T = string）
+
+export interface LogEntry<T = LText> {
   id: number;
   day: number;
   kind: 'sys' | 'night' | 'day' | 'death' | 'vote' | 'skill' | 'sheriff' | 'end';
-  text: string;
+  text: T;
 }
 
-export interface PrivEntry {
+export interface PrivEntry<T = LText> {
   id: number;
   day: number;
-  text: string;
+  text: T;
   kind: 'info' | 'good' | 'bad' | 'warn';
+  /** 不另外跳出通知（例如發牌時已經有翻牌動畫） */
+  quiet?: boolean;
 }
 
 export type ChatChannel = 'public' | 'wolf' | 'dead';
 
-export interface ChatMsg {
+/** 玩家打的字是單一字串；電腦玩家的台詞則每種語言各一份 */
+export interface ChatMsg<T = string | LText> {
   id: number;
   ch: ChatChannel;
   from: string;
-  text: string;
+  text: T;
   day: number;
   ts: number;
 }
 
 export type WinCamp = 'good' | 'wolf' | 'lovers' | 'piper';
 
-export interface Winner {
+export interface Winner<T = LText> {
   camp: WinCamp;
-  reason: string;
+  reason: T;
   ids: string[];
 }
 
@@ -362,6 +370,8 @@ export interface StageView {
   sub: string;
   narration: string;
   step?: NightStep;
+  /** 這是今晚的第一個步驟（剛天黑） */
+  nightfall?: boolean;
   kind?: SpeechKind | VoteKind;
   speaker?: string;
   order?: string[];
@@ -388,6 +398,8 @@ export interface ClientView {
   code: string;
   version: number;
   now: number;
+  /** 這份畫面的文字所使用的語言 */
+  lang: Lang;
   phase: GameState['phase'];
   hostId: string;
   gameNo: number;
@@ -400,14 +412,14 @@ export interface ClientView {
   stage: StageView;
   prompt: Prompt | null;
   skills: Prompt[];
-  log: LogEntry[];
-  priv: PrivEntry[];
-  chat: ChatMsg[];
+  log: LogEntry<string>[];
+  priv: PrivEntry<string>[];
+  chat: ChatMsg<string>[];
   channels: ChannelView[];
   sheriffState: SheriffState;
   election: { candidates: string[]; withdrawn: string[] } | null;
   silenced: string | null;
-  winner: Winner | null;
+  winner: Winner<string> | null;
   startError: string | null;
 }
 

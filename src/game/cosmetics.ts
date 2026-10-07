@@ -1,3 +1,5 @@
+import type { Lang } from './i18n';
+
 /** 玩家頭像。刻意不放狼、狐狸、熊，避免和角色牌混淆 */
 export const AVATARS = [
   '🐱', '🐶', '🐰', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸',
@@ -30,7 +32,14 @@ export const COLORS = [
   '#fde047', // 檸檬
 ];
 
-export const BOT_NAMES = [
-  '阿狗', '小美', '大雄', '靜香', '胖虎', '小夫', '阿土伯', '春嬌', '志明', '阿嬤',
-  '老王', '小智', '皮卡', '阿福', '花媽', '橘子', '柚子', '阿姆', '米奇', '路人甲',
-];
+/** 電腦玩家的名字，依加入電腦的房主所用的語言來取 */
+export const BOT_NAMES: Record<Lang, string[]> = {
+  zh: [
+    '阿狗', '小美', '大雄', '靜香', '胖虎', '小夫', '阿土伯', '春嬌', '志明', '阿嬤',
+    '老王', '小智', '皮卡', '阿福', '花媽', '橘子', '柚子', '阿姆', '米奇', '路人甲',
+  ],
+  en: [
+    'Alice', 'Bob', 'Charlie', 'Daisy', 'Ethan', 'Fiona', 'George', 'Hazel', 'Ivan', 'Julia',
+    'Kevin', 'Luna', 'Mason', 'Nora', 'Oscar', 'Penny', 'Quinn', 'Ruby', 'Sam', 'Tina',
+  ],
+};

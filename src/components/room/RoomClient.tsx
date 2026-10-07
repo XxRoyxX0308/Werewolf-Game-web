@@ -6,8 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { COLORS } from '@/game/cosmetics';
 import type { ClientAction, ClientView, PlayerView, Profile } from '@/game/types';
 import { sfx, speak, stopSpeaking } from '@/lib/client/audio';
+import { useLang } from '@/lib/client/lang';
 import { loadMarks, loadPref, loadProfile, saveMarks, savePref, saveProfile } from '@/lib/client/storage';
 import { useRoom } from '@/lib/client/useRoom';
+import { LangSwitch } from '../LangSwitch';
 import { ProfileForm } from '../ProfileForm';
 import type { SceneLink } from '../scene/Scene';
 import { Button, Modal, PlayerTag, SeatText, cls, useCountdown, useMedia } from '../ui';
@@ -20,10 +22,12 @@ import { RolesGuide } from './RolesGuide';
 import { Roster } from './Roster';
 import { SidePanel } from './SidePanel';
 
-const Scene = dynamic(() => import('../scene/Scene'), {
-  ssr: false,
-  loading: () => <div className="grid h-full place-items-center text-sm text-white/40">載入 3D 場景中…</div>,
-});
+function SceneLoading() {
+  const { t } = useLang();
+  return <div className="grid h-full place-items-center text-sm text-white/40">{t('載入 3D 場景中…', 'Loading the 3D scene…')}</div>;
+}
+
+const Scene = dynamic(() => import('../scene/Scene'), { ssr: false, loading: () => <SceneLoading /> });
 
 interface Toast {
   id: number;
@@ -46,16 +50,19 @@ function Centered({ children }: { children: React.ReactNode }) {
 
 export default function RoomClient({ code }: { code: string }) {
   const router = useRouter();
+  const { t } = useLang();
   const room = useRoom(code);
   if (room.status === 'notfound') {
     return (
       <Centered>
         <div className="panel max-w-sm p-8">
           <div className="text-5xl">🏚️</div>
-          <h1 className="mt-3 font-display text-2xl font-black text-gold-soft">找不到房間 {code}</h1>
-          <p className="mt-2 text-sm text-white/60">房間可能已經關閉，或是代碼輸入錯誤。</p>
+          <h1 className="mt-3 font-display text-2xl font-black text-gold-soft">{t(`找不到房間 ${code}`, `Room ${code} not found`)}</h1>
+          <p className="mt-2 text-sm text-white/60">
+            {t('房間可能已經關閉，或是代碼輸入錯誤。', 'The room may have closed, or the code may be wrong.')}
+          </p>
           <Button tone="primary" className="mt-5" onClick={() => router.push('/')}>
-            回到首頁
+            {t('回到首頁', 'Back to home')}
           </Button>
         </div>
       </Centered>
@@ -64,7 +71,7 @@ export default function RoomClient({ code }: { code: string }) {
   if (!room.view) {
     return (
       <Centered>
-        <div className="animate-pulse font-display text-xl font-black text-gold-soft">🐺 正在進入村莊…</div>
+        <div className="animate-pulse font-display text-xl font-black text-gold-soft">{t('🐺 正在進入村莊…', '🐺 Entering the village…')}</div>
       </Centered>
     );
   }
@@ -106,6 +113,7 @@ type RoomApi = ReturnType<typeof useRoom>;
 
 function RoomView({ view, online, send, join, forget, serverNow }: RoomApi & { view: ClientView }) {
   const router = useRouter();
+  const { lang, t } = useLang();
   const [selected, setSelected] = useState<string[]>([]);
   const [skillId, setSkillId] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -174,7 +182,7 @@ function RoomView({ view, online, send, join, forget, serverNow }: RoomApi & { v
     const maxId = view.priv.reduce((m, p) => Math.max(m, p.id), 0);
     if (lastPriv.current !== null) {
       for (const p of view.priv) {
-        if (p.id > lastPriv.current && !p.text.startsWith('你的身分是')) toast(p.text, p.kind);
+        if (p.id > lastPriv.current && !p.quiet) toast(p.text, p.kind);
       }
     }
     lastPriv.current = maxId;
@@ -187,12 +195,12 @@ function RoomView({ view, online, send, join, forget, serverNow }: RoomApi & { v
     const first = lastSeq.current === null;
     lastSeq.current = st.seq;
     if (first || !voice) return;
-    if (st.t === 'night' && st.narration.startsWith('天黑')) sfx('night');
+    if (st.t === 'night' && st.nightfall) sfx('night');
     else if (st.t === 'announce' || st.t === 'signup') sfx('day');
     else if (st.t === 'vote') sfx('vote');
     else if (st.t === 'ended') sfx('end');
-    speak(st.narration);
-  }, [st, voice]);
+    speak(st.narration, view.lang);
+  }, [st, voice, view.lang]);
 
   // ── 目前可操作的提示 ──
   const mainPrompt = view.prompt && !view.prompt.done && !view.prompt.blocked ? view.prompt : null;
@@ -246,7 +254,10 @@ function RoomView({ view, online, send, join, forget, serverNow }: RoomApi & { v
   };
 
   // ── 3D 場景所需的資料 ──
-  const chipMap = useMemo(() => Object.fromEntries(view.players.map((p) => [p.id, chipsFor(p, view, marks)])), [view, marks]);
+  const chipMap = useMemo(
+    () => Object.fromEntries(view.players.map((p) => [p.id, chipsFor(p, view, marks, lang)])),
+    [view, marks, lang],
+  );
   const scenePlayers = useMemo(
     () =>
       view.players.map((p) => ({
@@ -296,9 +307,9 @@ function RoomView({ view, online, send, join, forget, serverNow }: RoomApi & { v
     const url = `${location.origin}/room/${view.code}`;
     try {
       await navigator.clipboard.writeText(url);
-      toast('已複製邀請連結', 'good');
+      toast(t('已複製邀請連結', 'Invite link copied'), 'good');
     } catch {
-      window.prompt('複製這個連結傳給朋友', url);
+      window.prompt(t('複製這個連結傳給朋友', 'Copy this link and send it to your friends'), url);
     }
   };
 
@@ -321,38 +332,43 @@ function RoomView({ view, online, send, join, forget, serverNow }: RoomApi & { v
     <SidePanel
       view={view}
       send={send}
-      settings={lobby ? <LobbyPanel view={view} send={run} onCopied={() => toast('已複製邀請連結', 'good')} /> : undefined}
+      settings={lobby ? <LobbyPanel view={view} send={run} onCopied={() => toast(t('已複製邀請連結', 'Invite link copied'), 'good')} /> : undefined}
     />
   );
   const roleEl = view.myRole && !lobby ? <RoleCard role={view.myRole} notes={view.myNotes} /> : null;
 
   const tools = (
     <>
-      <Button size="sm" onClick={() => setGuide(true)} title="角色圖鑑與規則">
-        📖 角色
+      <Button size="sm" onClick={() => setGuide(true)} title={t('角色圖鑑與規則', 'Role guide & rules')}>
+        {t('📖 角色', '📖 Roles')}
       </Button>
-      <Button size="sm" onClick={toggleVoice} title="法官語音與音效">
-        {voice ? '🔊 語音' : '🔇 靜音'}
+      <Button size="sm" onClick={toggleVoice} title={t('法官語音與音效', 'Narrator voice & sound effects')}>
+        {voice ? t('🔊 語音', '🔊 Voice') : t('🔇 靜音', '🔇 Muted')}
       </Button>
       {isHost && playing && (
         <>
-          <Button size="sm" onClick={() => run({ type: 'hostSkip' })} title="立即結束目前的階段（例如有人掛機）">
-            ⏭ 跳過
+          <Button
+            size="sm"
+            onClick={() => run({ type: 'hostSkip' })}
+            title={t('立即結束目前的階段（例如有人掛機）', 'End the current stage right away (e.g. when someone is away)')}
+          >
+            {t('⏭ 跳過', '⏭ Skip')}
           </Button>
           <Button
             size="sm"
-            onClick={() => window.confirm('確定要中止這一局、回到大廳嗎？') && run({ type: 'restart' })}
-            title="中止本局並回到大廳"
+            onClick={() => window.confirm(t('確定要中止這一局、回到大廳嗎？', 'Abort this game and return to the lobby?')) && run({ type: 'restart' })}
+            title={t('中止本局並回到大廳', 'Abort this game and return to the lobby')}
           >
-            🏳 中止
+            {t('🏳 中止', '🏳 Abort')}
           </Button>
         </>
       )}
       {(lobby || !view.meId) && (
         <Button size="sm" onClick={leave}>
-          🚪 離開
+          {t('🚪 離開', '🚪 Leave')}
         </Button>
       )}
+      <LangSwitch />
     </>
   );
 
@@ -381,8 +397,8 @@ function RoomView({ view, online, send, join, forget, serverNow }: RoomApi & { v
         <aside className="pointer-events-auto hidden min-h-0 flex-col gap-3 lg:flex">
           <div className="panel p-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-display text-xl font-black text-gold-soft title-glow">🐺 狼人殺</span>
-              <button onClick={copyLink} title="複製邀請連結" className="rounded-lg bg-white/10 px-2 py-1 font-mono text-sm font-black tracking-widest text-white hover:bg-white/20">
+              <span className="font-display text-xl font-black text-gold-soft title-glow">{t('🐺 狼人殺', '🐺 Werewolf')}</span>
+              <button onClick={copyLink} title={t('複製邀請連結', 'Copy invite link')} className="rounded-lg bg-white/10 px-2 py-1 font-mono text-sm font-black tracking-widest text-white hover:bg-white/20">
                 {view.code} ⧉
               </button>
             </div>
@@ -398,22 +414,30 @@ function RoomView({ view, online, send, join, forget, serverNow }: RoomApi & { v
             <div className="pointer-events-auto flex w-full items-center justify-between gap-1.5 lg:hidden">
               <div className="flex gap-1.5">
                 <Button size="sm" onClick={() => setDrawer('roster')}>
-                  👥 名單
+                  {t('👥 名單', '👥 Players')}
                 </Button>
-                <button onClick={copyLink} title="複製邀請連結" className="rounded-xl border border-white/15 bg-ink-800/75 px-2 font-mono text-xs font-black tracking-widest text-white backdrop-blur-sm">
+                <button onClick={copyLink} title={t('複製邀請連結', 'Copy invite link')} className="rounded-xl border border-white/15 bg-ink-800/75 px-2 font-mono text-xs font-black tracking-widest text-white backdrop-blur-sm">
                   {view.code} ⧉
                 </button>
               </div>
               <div className="flex flex-wrap justify-end gap-1.5">
                 {tools}
                 <Button size="sm" onClick={() => setDrawer('side')}>
-                  {lobby ? '⚙️ 設定' : '📜 紀錄'}
+                  {lobby ? t('⚙️ 設定', '⚙️ Settings') : t('📜 紀錄', '📜 Log')}
                 </Button>
               </div>
             </div>
             <Banner view={view} serverNow={serverNow} />
-            {!online && <div className="rounded-full bg-blood px-3 py-1 text-xs font-black text-white">連線中斷，正在重新連線…</div>}
-            {!view.meId && !lobby && <div className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold text-white">👀 遊戲進行中，你正在觀戰</div>}
+            {!online && (
+              <div className="rounded-full bg-blood px-3 py-1 text-xs font-black text-white">
+                {t('連線中斷，正在重新連線…', 'Connection lost — reconnecting…')}
+              </div>
+            )}
+            {!view.meId && !lobby && (
+              <div className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold text-white">
+                {t('👀 遊戲進行中，你正在觀戰', '👀 Game in progress — you are spectating')}
+              </div>
+            )}
             <div className="flex w-full max-w-md flex-col items-center gap-1.5">
               {toasts.map((t) => (
                 <div key={t.id} className={cls('animate-rise pointer-events-auto w-full rounded-xl border px-3 py-2 text-sm font-bold text-white shadow-2xl', TOAST_TONE[t.tone])}>
@@ -430,15 +454,15 @@ function RoomView({ view, online, send, join, forget, serverNow }: RoomApi & { v
                   {isHost ? (
                     <>
                       <Button tone="primary" size="lg" className="w-full" disabled={!!view.startError} onClick={() => run({ type: 'start' })}>
-                        🌙 開始遊戲（{view.players.length} 人）
+                        {t(`🌙 開始遊戲（${view.players.length} 人）`, `🌙 Start Game (${view.players.length} players)`)}
                       </Button>
                       {view.startError && <div className="text-xs font-bold text-blood-soft">{view.startError}</div>}
                     </>
                   ) : (
-                    <div className="text-sm font-bold text-white/80">⏳ 等待房主開始遊戲…</div>
+                    <div className="text-sm font-bold text-white/80">{t('⏳ 等待房主開始遊戲…', '⏳ Waiting for the host to start the game…')}</div>
                   )}
                   <button onClick={() => setProfileOpen(true)} className="text-xs font-bold text-white/60 underline-offset-2 hover:text-white hover:underline">
-                    ✏️ 修改我的暱稱、頭像與顏色
+                    {t('✏️ 修改我的暱稱、頭像與顏色', '✏️ Edit my nickname, avatar and color')}
                   </button>
                 </div>
               ) : null
@@ -482,7 +506,7 @@ function RoomView({ view, online, send, join, forget, serverNow }: RoomApi & { v
             onClick={(e) => e.stopPropagation()}
           >
             {drawer === 'roster' ? rosterEl : sideEl}
-            <Button onClick={() => setDrawer(null)}>關閉</Button>
+            <Button onClick={() => setDrawer(null)}>{t('關閉', 'Close')}</Button>
           </div>
         </div>
       )}
@@ -493,7 +517,7 @@ function RoomView({ view, online, send, join, forget, serverNow }: RoomApi & { v
       {view.phase === 'ended' && !showOver && (
         <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2">
           <Button tone="primary" onClick={() => setOverClosed(-1)}>
-            🏆 查看結算
+            {t('🏆 查看結算', '🏆 View results')}
           </Button>
         </div>
       )}
@@ -518,17 +542,23 @@ function RoomView({ view, online, send, join, forget, serverNow }: RoomApi & { v
 }
 
 function MarkModal({ player, current, onSet, onClose }: { player: PlayerView | null; current: string; onSet: (t: string) => void; onClose: () => void }) {
+  const { lang, t } = useLang();
   const [custom, setCustom] = useState('');
   useEffect(() => setCustom(''), [player?.id]);
   if (!player) return null;
   return (
-    <Modal open onClose={onClose} title="📝 標記玩家">
+    <Modal open onClose={onClose} title={t('📝 標記玩家', '📝 Mark a player')}>
       <div className="mb-3 text-base">
         <PlayerTag p={player} />
       </div>
-      <p className="mb-3 text-xs text-white/55">標記只有你自己看得到，會顯示在他的名牌和名單上，幫助你記住每個人的身分推測。</p>
+      <p className="mb-3 text-xs text-white/55">
+        {t(
+          '標記只有你自己看得到，會顯示在他的名牌和名單上，幫助你記住每個人的身分推測。',
+          "Marks are visible only to you. They show on the player's name tag and in the list to help you keep track of your guesses.",
+        )}
+      </p>
       <div className="grid grid-cols-4 gap-2">
-        {MARKS.map((m) => (
+        {MARKS[lang].map((m) => (
           <button
             key={m}
             onClick={() => onSet(m)}
@@ -549,16 +579,16 @@ function MarkModal({ player, current, onSet, onClose }: { player: PlayerView | n
           value={custom}
           maxLength={8}
           onChange={(e) => setCustom(e.target.value)}
-          placeholder="自訂標記（最多 8 字）"
+          placeholder={t('自訂標記（最多 8 字）', 'Custom mark (max 8 characters)')}
           className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-gold"
         />
         <Button tone="primary" type="submit" disabled={!custom.trim()}>
-          標記
+          {t('標記', 'Mark')}
         </Button>
       </form>
       {current && (
         <Button className="mt-3 w-full" onClick={() => onSet('')}>
-          清除標記「{current}」
+          {t(`清除標記「${current}」`, `Clear mark "${current}"`)}
         </Button>
       )}
     </Modal>
@@ -566,9 +596,11 @@ function MarkModal({ player, current, onSet, onClose }: { player: PlayerView | n
 }
 
 function JoinModal({ view, join, onError, onHome }: { view: ClientView; join: (p: Profile) => Promise<void>; onError: (m: string) => void; onHome: () => void }) {
+  const { t } = useLang();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [busy, setBusy] = useState(false);
   const takenColors = view.players.map((p) => p.color);
+  const count = view.players.length;
   useEffect(() => {
     const p = loadProfile();
     // 慣用的顏色若已被別人選走，先換成第一個空的
@@ -577,7 +609,7 @@ function JoinModal({ view, join, onError, onHome }: { view: ClientView; join: (p
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!profile) return null;
   const submit = async () => {
-    if (!profile.name.trim()) return onError('請先輸入暱稱');
+    if (!profile.name.trim()) return onError(t('請先輸入暱稱', 'Please enter a nickname first'));
     setBusy(true);
     try {
       saveProfile(profile);
@@ -588,13 +620,22 @@ function JoinModal({ view, join, onError, onHome }: { view: ClientView; join: (p
     setBusy(false);
   };
   return (
-    <Modal open title={`加入房間 ${view.code}`}>
-      <p className="mb-4 text-sm text-white/60">房間裡已有 {view.players.length} 位玩家。設定你的外觀後加入：</p>
+    <Modal open title={t(`加入房間 ${view.code}`, `Join room ${view.code}`)}>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <p className="text-sm text-white/60">
+          {t(
+            `房間裡已有 ${count} 位玩家。設定你的外觀後加入：`,
+            `${count === 1 ? 'There is 1 player' : `There are ${count} players`} in the room. Set up your look and join:`,
+          )}
+        </p>
+        {/* 這個視窗會蓋住工具列，所以這裡也要能選語言 */}
+        <LangSwitch />
+      </div>
       <ProfileForm value={profile} onChange={setProfile} takenColors={takenColors} takenAvatars={view.players.map((p) => p.avatar)} />
       <div className="mt-5 flex gap-2">
-        <Button onClick={onHome}>回首頁</Button>
+        <Button onClick={onHome}>{t('回首頁', 'Home')}</Button>
         <Button tone="primary" className="flex-1" disabled={busy} onClick={submit}>
-          加入遊戲
+          {t('加入遊戲', 'Join the game')}
         </Button>
       </div>
     </Modal>
@@ -602,13 +643,14 @@ function JoinModal({ view, join, onError, onHome }: { view: ClientView; join: (p
 }
 
 function EditProfileModal({ me, view, onClose, onSave }: { me: PlayerView; view: ClientView; onClose: () => void; onSave: (p: Profile) => void }) {
+  const { t } = useLang();
   const [profile, setProfile] = useState<Profile>({ name: me.name, avatar: me.avatar, color: me.color });
   const others = view.players.filter((p) => !p.isMe);
   return (
-    <Modal open onClose={onClose} title="✏️ 修改外觀">
+    <Modal open onClose={onClose} title={t('✏️ 修改外觀', '✏️ Edit appearance')}>
       <ProfileForm value={profile} onChange={setProfile} takenColors={others.map((p) => p.color)} takenAvatars={others.map((p) => p.avatar)} />
       <Button tone="primary" className="mt-5 w-full" disabled={!profile.name.trim()} onClick={() => onSave(profile)}>
-        儲存
+        {t('儲存', 'Save')}
       </Button>
     </Modal>
   );

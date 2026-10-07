@@ -16,10 +16,22 @@ import {
   startError,
   startGame,
 } from '../src/game/engine';
+import { type Lang, withLang } from '../src/game/i18n';
 import { PRESETS } from '../src/game/roles';
 import { tick, wakeAt } from '../src/game/runtime';
-import type { GameState, Prompt, RoleId } from '../src/game/types';
+import type { ClientView, GameState, Prompt, RoleId } from '../src/game/types';
 import { viewFor } from '../src/game/view';
+
+/** 中日韓文字與全形標點 */
+const CJK = /[　-ヿ一-鿿＀-￯]/;
+
+/** 英文畫面裡不應該殘留任何中文（代表有文字漏翻） */
+function assertTranslated(v: ClientView) {
+  if (v.lang !== 'en') return;
+  const json = JSON.stringify(v);
+  const m = CJK.exec(json);
+  assert.ok(!m, `英文畫面出現未翻譯的文字：${json.slice(Math.max(0, (m?.index ?? 0) - 60), (m?.index ?? 0) + 60)}`);
+}
 
 function mulberry32(a: number) {
   return () => {
@@ -71,9 +83,10 @@ function play(seed: number, preset?: RoleId[]) {
   let s = createState('FUZZ', clock);
   const n = preset ? preset.length - (preset.includes('thief') ? 2 : 0) : 4 + Math.floor(rnd() * 15);
   const humans = 1 + Math.floor(rnd() * n);
+  const lang: Lang = seed % 2 ? 'zh' : 'en';
   for (let i = 0; i < n; i++) {
     if (i < humans) addPlayer(s, { name: `H${i}` });
-    else addBot(s);
+    else withLang(lang, () => addBot(s));
   }
   setConfig(s, {
     roles: preset ?? randomDeck(n),
@@ -113,7 +126,7 @@ function play(seed: number, preset?: RoleId[]) {
     if (st.t === 'speech') assert.ok(P(s, st.order[st.idx]).alive, '死者不應發言');
     if (st.t === 'vote') for (const v of st.voters) assert.ok(P(s, v).alive && P(s, v).canVote, '無投票權者不應投票');
     assert.ok(wakeAt(s) !== null);
-    if (step % 5 === 0) for (const p of s.players) viewFor(s, p.token || null, step, clock);
+    if (step % 5 === 0) for (const p of s.players) assertTranslated(viewFor(s, p.token || null, step, clock, lang));
 
     s = JSON.parse(JSON.stringify(s)) as GameState; // 模擬資料庫存取
     clock += 1500 + Math.floor(rnd() * 5000);
@@ -121,7 +134,7 @@ function play(seed: number, preset?: RoleId[]) {
   }
   assert.ok(s.winner, '遊戲結束必須有勝利者');
   assert.ok(s.day < 80, '遊戲天數異常');
-  for (const p of s.players) viewFor(s, p.token || null, 0, clock);
+  for (const p of s.players) assertTranslated(viewFor(s, p.token || null, 0, clock, lang));
   return s;
 }
 
@@ -145,7 +158,7 @@ test('隨機對局：所有預設板子', () => {
       try {
         play(seed * 7919, preset.roles);
       } catch (e) {
-        throw new Error(`板子 ${preset.name} seed ${seed} 失敗：${(e as Error).stack}`);
+        throw new Error(`板子 ${preset.name.zh} seed ${seed} 失敗：${(e as Error).stack}`);
       }
     }
   }

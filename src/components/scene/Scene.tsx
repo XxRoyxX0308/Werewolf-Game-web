@@ -4,6 +4,7 @@ import { OrbitControls, QuadraticBezierLine } from '@react-three/drei';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { type RefObject, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { useLang } from '@/lib/client/lang';
 import { Figure, Nameplate, type ScenePlayer, labelHeight } from './Figure';
 import { Atmosphere, type Blend, World } from './World';
 
@@ -186,6 +187,7 @@ function Stage({ seats, R, labels, ...props }: SceneProps & { seats: Seat[]; R: 
 /** 3D 村莊廣場：玩家圍著營火而坐，隨遊戲進行切換日夜 */
 export default function Scene(props: SceneProps) {
   const { players, speaker, selected, hovered } = props;
+  const { t } = useLang();
   const labels = useRef(new Map<string, HTMLDivElement>());
   const R = seatRadius(players.length);
 
@@ -209,7 +211,11 @@ export default function Scene(props: SceneProps) {
         dpr={[1, 1.75]}
         camera={{ fov: 40, near: 0.1, far: 500, position: [0, 7, 16] }}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
-        fallback={<div className="grid h-full place-items-center text-sm text-white/60">你的瀏覽器不支援 WebGL，無法顯示 3D 場景</div>}
+        fallback={
+          <div className="grid h-full place-items-center text-sm text-white/60">
+            {t('你的瀏覽器不支援 WebGL，無法顯示 3D 場景', 'Your browser does not support WebGL, so the 3D scene cannot be shown')}
+          </div>
+        }
       >
         <Stage {...props} seats={seats} R={R} labels={labels} />
       </Canvas>

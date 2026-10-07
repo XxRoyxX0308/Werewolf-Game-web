@@ -9,6 +9,13 @@ export class NotFoundError extends Error {
   }
 }
 
+export class BusyError extends Error {
+  constructor() {
+    super('房間忙碌中，請再試一次');
+    this.name = 'BusyError';
+  }
+}
+
 interface Hub {
   waiters: Map<string, Set<() => void>>;
   cache: Map<string, { at: number; meta: Meta | null; pending?: Promise<Meta | null> }>;
@@ -90,7 +97,7 @@ export async function mutate<T>(code: string, fn: (s: GameState, now: number) =>
     }
     await sleep(10 + Math.random() * 30 * (attempt + 1));
   }
-  throw new Error('房間忙碌中，請再試一次');
+  throw new BusyError();
 }
 
 /** 處理到期的計時器與電腦玩家行動；沒有變化時不寫入 */

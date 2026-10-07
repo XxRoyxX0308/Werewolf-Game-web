@@ -1,4 +1,5 @@
-import { P, act, getPrompt, getSkills, isWolf, pickOne, random, sendChat, shuffle } from './engine';
+import { P, act, getPrompt, getSkills, isWolf, pickOne, postChat, random, shuffle } from './engine';
+import { L, type LText } from './i18n';
 import type { GameState, Player, Prompt, Stage } from './types';
 
 type NightStage = Extract<Stage, { t: 'night' }>;
@@ -13,16 +14,24 @@ function hash(str: string): number {
 }
 
 const SPEECH_LINES = [
-  '我是好人，這輪先過。',
-  '沒什麼資訊，先聽後面的發言。',
-  '我覺得前面有人發言怪怪的…',
-  '先過，等等看票型再說。',
-  '大家冷靜分析一下，不要亂投。',
-  '有身分的可以出來帶隊嗎？',
-  '我這輪先觀察，過。',
+  L('我是好人，這輪先過。', "I'm good. I'll pass this round."),
+  L('沒什麼資訊，先聽後面的發言。', "Not much to go on — let's hear the others first."),
+  L('我覺得前面有人發言怪怪的…', 'Someone before me sounded a bit off…'),
+  L('先過，等等看票型再說。', "Pass. Let's see how the votes fall."),
+  L('大家冷靜分析一下，不要亂投。', "Let's think this through and not vote at random."),
+  L('有身分的可以出來帶隊嗎？', 'Could someone with a special role take the lead?'),
+  L('我這輪先觀察，過。', "I'll just watch this round. Pass."),
 ];
-const SHERIFF_LINES = ['我想當警長帶大家找狼。', '投我一票，我是好人牌。', '警徽給我，我會好好歸票。'];
-const LAST_LINES = ['我是好人啊…各位加油。', '記得看票型！', '好人們撐住。'];
+const SHERIFF_LINES = [
+  L('我想當警長帶大家找狼。', "I'd like to be sheriff and lead the hunt for the wolves."),
+  L('投我一票，我是好人牌。', "Vote for me — I'm on the good side."),
+  L('警徽給我，我會好好歸票。', "Give me the badge and I'll call the votes carefully."),
+];
+const LAST_LINES = [
+  L('我是好人啊…各位加油。', 'I was good… good luck, everyone.'),
+  L('記得看票型！', 'Remember to check the voting pattern!'),
+  L('好人們撐住。', 'Hang in there, good folks.'),
+];
 
 interface Ready {
   at: number;
@@ -122,12 +131,12 @@ function decide(s: GameState, bot: Player, pr: Prompt): { option: string; target
 function chatter(s: GameState, bot: Player, now: number) {
   const st = s.stage;
   if (!st) return;
-  let lines: string[] | null = null;
+  let lines: LText[] | null = null;
   if (st.t === 'lastWords') lines = LAST_LINES;
   else if (st.t === 'speech') lines = st.kind === 'sheriff' || st.kind === 'sheriffPk' ? SHERIFF_LINES : SPEECH_LINES;
   if (!lines) return;
   try {
-    sendChat(s, bot.id, 'public', pickOne(lines), now);
+    postChat(s, bot.id, 'public', pickOne(lines), now);
   } catch {
     // 被禁言或無法發言時略過
   }

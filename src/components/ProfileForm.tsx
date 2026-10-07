@@ -3,6 +3,7 @@
 import { AVATARS, COLORS } from '@/game/cosmetics';
 import type { Profile } from '@/game/types';
 import { textOn } from '@/lib/client/color';
+import { useLang } from '@/lib/client/lang';
 import { cls } from './ui';
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 
 /** 設定暱稱、頭像與代表色——其他玩家就是靠這三樣加上座位號碼來認人 */
 export function ProfileForm({ value, onChange, takenColors = [], takenAvatars = [] }: Props) {
+  const { t } = useLang();
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
@@ -25,11 +27,11 @@ export function ProfileForm({ value, onChange, takenColors = [], takenAvatars = 
           {value.avatar}
         </div>
         <label className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-xs font-bold text-white/60">暱稱</span>
+          <span className="text-xs font-bold text-white/60">{t('暱稱', 'Nickname')}</span>
           <input
             value={value.name}
             maxLength={12}
-            placeholder="輸入你的暱稱"
+            placeholder={t('輸入你的暱稱', 'Enter your nickname')}
             onChange={(e) => onChange({ ...value, name: e.target.value })}
             className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2.5 text-base font-bold text-white outline-none placeholder:font-normal placeholder:text-white/30 focus:border-gold"
           />
@@ -37,7 +39,7 @@ export function ProfileForm({ value, onChange, takenColors = [], takenAvatars = 
       </div>
 
       <div>
-        <div className="mb-1.5 text-xs font-bold text-white/60">頭像</div>
+        <div className="mb-1.5 text-xs font-bold text-white/60">{t('頭像', 'Avatar')}</div>
         <div className="grid max-h-[132px] grid-cols-9 gap-1 overflow-y-auto rounded-xl bg-black/25 p-1.5">
           {AVATARS.map((a) => {
             const taken = takenAvatars.includes(a) && a !== value.avatar;
@@ -45,7 +47,7 @@ export function ProfileForm({ value, onChange, takenColors = [], takenAvatars = 
               <button
                 key={a}
                 type="button"
-                title={taken ? '已有人使用' : undefined}
+                title={taken ? t('已有人使用', 'Already taken') : undefined}
                 onClick={() => onChange({ ...value, avatar: a })}
                 className={cls(
                   'grid aspect-square place-items-center rounded-lg text-xl transition hover:bg-white/15',
@@ -61,7 +63,7 @@ export function ProfileForm({ value, onChange, takenColors = [], takenAvatars = 
       </div>
 
       <div>
-        <div className="mb-1.5 text-xs font-bold text-white/60">代表色（房間內不重複）</div>
+        <div className="mb-1.5 text-xs font-bold text-white/60">{t('代表色（房間內不重複）', 'Color (unique within the room)')}</div>
         <div className="grid grid-cols-10 gap-1.5">
           {COLORS.map((c) => {
             const taken = takenColors.includes(c) && c !== value.color;
@@ -70,7 +72,7 @@ export function ProfileForm({ value, onChange, takenColors = [], takenAvatars = 
                 key={c}
                 type="button"
                 disabled={taken}
-                title={taken ? '已有人使用' : undefined}
+                title={taken ? t('已有人使用', 'Already taken') : undefined}
                 onClick={() => onChange({ ...value, color: c })}
                 className={cls(
                   'grid aspect-square place-items-center rounded-full text-xs font-black transition',

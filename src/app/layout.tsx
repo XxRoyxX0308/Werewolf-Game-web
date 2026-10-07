@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { LangProvider } from '@/lib/client/lang';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -15,7 +16,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    // 翻譯、文法檢查等瀏覽器擴充功能會改寫頁面內容，可能讓 React 出錯；這裡請它們不要處理本頁
+    // 翻譯、文法檢查等瀏覽器擴充功能會改寫頁面內容，可能讓 React 出錯；這裡請它們不要處理本頁。
+    // lang 會在玩家切換語言時由 LangProvider 更新
     <html lang="zh-Hant" translate="no" className="notranslate" suppressHydrationWarning>
       <head>
         <meta name="google" content="notranslate" />
@@ -26,7 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        <LangProvider>{children}</LangProvider>
+      </body>
     </html>
   );
 }

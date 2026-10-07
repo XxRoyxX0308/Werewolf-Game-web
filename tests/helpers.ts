@@ -87,9 +87,9 @@ export function skill(s: GameState, actor: number, promptId: string, ...targets:
   act(s, id(s, actor), promptId, promptId, ids(s, targets), clock);
 }
 
-export const hasLog = (s: GameState, text: string) => s.log.some((l) => l.text.includes(text));
+export const hasLog = (s: GameState, text: string) => s.log.some((l) => l.text.zh.includes(text));
 export const hasPriv = (s: GameState, n: number, text: string) =>
-  (s.priv[id(s, n)] ?? []).some((l) => l.text.includes(text));
+  (s.priv[id(s, n)] ?? []).some((l) => l.text.zh.includes(text));
 export const alive = (s: GameState) => s.players.filter((p) => p.alive).map((p) => p.seat);
 
 /** 目前階段的種類（回傳一般字串，避免 TypeScript 把階段型別收窄） */

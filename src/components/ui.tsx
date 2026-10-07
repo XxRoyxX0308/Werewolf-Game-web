@@ -3,6 +3,7 @@
 import { type ButtonHTMLAttributes, type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import type { PlayerView } from '@/game/types';
 import { textOn } from '@/lib/client/color';
+import { useLang } from '@/lib/client/lang';
 
 export const cls = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
 
@@ -59,14 +60,14 @@ export function PlayerTag({ p, dim }: { p: PlayerView; dim?: boolean }) {
   );
 }
 
-/** 把文字中的「3號」換成該玩家顏色的標籤，讓紀錄一眼就能對上人 */
+/** 把文字中的「3號」（英文為「#3」）換成該玩家顏色的標籤，讓紀錄一眼就能對上人 */
 export function SeatText({ text, players }: { text: string; players: PlayerView[] }) {
-  const parts = text.split(/(\d+號)/g);
+  const parts = text.split(/(\d+號|#\d+)/g);
   return (
     <>
       {parts.map((part, i) => {
-        const m = /^(\d+)號$/.exec(part);
-        const p = m ? players.find((x) => x.seat === Number(m[1])) : null;
+        const m = /^(?:(\d+)號|#(\d+))$/.exec(part);
+        const p = m ? players.find((x) => x.seat === Number(m[1] ?? m[2])) : null;
         if (!p) return <span key={i}>{part}</span>;
         return (
           <span
@@ -125,6 +126,7 @@ export function Modal({
   children: ReactNode;
   wide?: boolean;
 }) {
+  const { t } = useLang();
   useEffect(() => {
     if (!open || !onClose) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -142,7 +144,7 @@ export function Modal({
           <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-3">
             <h2 className="font-display text-lg font-black text-gold-soft">{title}</h2>
             {onClose && (
-              <button onClick={onClose} className="rounded-lg px-2 py-1 text-white/60 hover:bg-white/10 hover:text-white" aria-label="關閉">
+              <button onClick={onClose} className="rounded-lg px-2 py-1 text-white/60 hover:bg-white/10 hover:text-white" aria-label={t('關閉', 'Close')}>
                 ✕
               </button>
             )}

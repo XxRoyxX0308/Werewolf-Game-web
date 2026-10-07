@@ -1,37 +1,39 @@
 import { P, channelsFor, getPrompt, getSkills, inPack, startError, tag, wolfPack } from './engine';
-import { ROLES, STEP_NAME } from './roles';
+import { L, type LText, type Lang, curLang, loc, seatTag, sep, t, withLang } from './i18n';
+import { ROLES, WIN_TITLE, stepName } from './roles';
 import type { ClientView, GameState, NightStep, Player, PlayerView, StageView } from './types';
 
-const NARRATION: Record<NightStep, string> = {
-  thief: '盜賊請睜眼，請從底牌中選擇你的身分。',
-  cupid: '丘比特請睜眼，請選擇兩名玩家成為情侶。',
-  halfBlood: '混血兒請睜眼，請選擇你的認親對象。',
-  wildChild: '野孩子請睜眼，請選擇你的榜樣。',
-  nightmare: '夢魘請睜眼，請選擇要恐懼的玩家。',
-  magician: '魔術師請睜眼，請選擇要交換的兩名玩家。',
-  dreamer: '攝夢人請睜眼，請選擇今晚的夢遊者。',
-  guard: '守衛請睜眼，請選擇要守護的玩家。',
-  wolves: '狼人請睜眼，請選擇要襲擊的玩家。',
-  wolfBeauty: '狼美人請睜眼，請選擇要魅惑的玩家。',
-  gargoyle: '石像鬼請睜眼，請選擇要查驗的玩家。',
-  witch: '女巫請睜眼，你有一瓶解藥和一瓶毒藥，請問要使用嗎。',
-  seer: '預言家請睜眼，請選擇要查驗的玩家。',
-  psychic: '通靈師請睜眼，請選擇要查驗的玩家。',
-  fox: '狐狸請睜眼，請選擇要查驗的玩家。',
-  witcher: '獵魔人請睜眼，請問要狩獵嗎。',
-  silencer: '禁言長老請睜眼，請選擇要禁言的玩家。',
-  crow: '烏鴉請睜眼，請選擇要詛咒的玩家。',
-  piper: '吹笛者請睜眼，請選擇要魅惑的玩家。',
+const NARRATION: Record<NightStep, LText> = {
+  thief: L('盜賊請睜眼，請從底牌中選擇你的身分。', 'Thief, open your eyes. Choose your role from the spare cards.'),
+  cupid: L('丘比特請睜眼，請選擇兩名玩家成為情侶。', 'Cupid, open your eyes. Choose two players to become lovers.'),
+  halfBlood: L('混血兒請睜眼，請選擇你的認親對象。', 'Half-Blood, open your eyes. Choose your kin.'),
+  wildChild: L('野孩子請睜眼，請選擇你的榜樣。', 'Wild Child, open your eyes. Choose your role model.'),
+  nightmare: L('夢魘請睜眼，請選擇要恐懼的玩家。', 'Nightmare, open your eyes. Choose a player to terrify.'),
+  magician: L('魔術師請睜眼，請選擇要交換的兩名玩家。', 'Magician, open your eyes. Choose two players to swap.'),
+  dreamer: L('攝夢人請睜眼，請選擇今晚的夢遊者。', "Dreamweaver, open your eyes. Choose tonight's sleepwalker."),
+  guard: L('守衛請睜眼，請選擇要守護的玩家。', 'Guard, open your eyes. Choose a player to protect.'),
+  wolves: L('狼人請睜眼，請選擇要襲擊的玩家。', 'Werewolves, open your eyes. Choose a player to attack.'),
+  wolfBeauty: L('狼美人請睜眼，請選擇要魅惑的玩家。', 'Wolf Beauty, open your eyes. Choose a player to charm.'),
+  gargoyle: L('石像鬼請睜眼，請選擇要查驗的玩家。', 'Gargoyle, open your eyes. Choose a player to check.'),
+  witch: L(
+    '女巫請睜眼，你有一瓶解藥和一瓶毒藥，請問要使用嗎。',
+    'Witch, open your eyes. You have an antidote and a poison. Will you use one?',
+  ),
+  seer: L('預言家請睜眼，請選擇要查驗的玩家。', 'Seer, open your eyes. Choose a player to check.'),
+  psychic: L('通靈師請睜眼，請選擇要查驗的玩家。', 'Psychic, open your eyes. Choose a player to check.'),
+  fox: L('狐狸請睜眼，請選擇要查驗的玩家。', 'Fox, open your eyes. Choose a player to check.'),
+  witcher: L('獵魔人請睜眼，請問要狩獵嗎。', 'Witcher, open your eyes. Will you hunt tonight?'),
+  silencer: L('禁言長老請睜眼，請選擇要禁言的玩家。', 'Silencer, open your eyes. Choose a player to silence.'),
+  crow: L('烏鴉請睜眼，請選擇要詛咒的玩家。', 'Crow, open your eyes. Choose a player to curse.'),
+  piper: L('吹笛者請睜眼，請選擇要魅惑的玩家。', 'Piper, open your eyes. Choose players to enchant.'),
 };
-
-const CAMP_NAME = { good: '好人陣營', wolf: '狼人陣營', lovers: '情侶陣營', piper: '吹笛者' } as const;
 
 const seats = (s: GameState, ids: string[]) =>
   ids
     .map((i) => P(s, i).seat)
     .sort((a, b) => a - b)
-    .map((n) => `${n}號`)
-    .join('、');
+    .map((n) => seatTag(curLang(), n))
+    .join(sep());
 
 function notesFor(s: GameState, me: Player): string[] {
   const rs = s.rs;
@@ -39,59 +41,73 @@ function notesFor(s: GameState, me: Player): string[] {
   if (!me.role || s.phase === 'lobby') return out;
   switch (me.role) {
     case 'witch':
-      out.push(`解藥：${rs.antidote ? '可用' : '已使用'}`, `毒藥：${rs.poison ? '可用' : '已使用'}`);
+      out.push(
+        t(`解藥：${rs.antidote ? '可用' : '已使用'}`, `Antidote: ${rs.antidote ? 'available' : 'used'}`),
+        t(`毒藥：${rs.poison ? '可用' : '已使用'}`, `Poison: ${rs.poison ? 'available' : 'used'}`),
+      );
       break;
     case 'guard': {
       const last = rs.guardLast ?? s.night?.prev.guard;
-      if (last) out.push(`最近守護：${tag(s, last)}`);
+      if (last) out.push(t(`最近守護：${tag(s, last)}`, `Last protected: ${tag(s, last)}`));
       break;
     }
     case 'knight':
-      out.push(rs.knightUsed ? '決鬥：已使用' : '決鬥：白天發言階段可發動');
+      out.push(rs.knightUsed ? t('決鬥：已使用', 'Duel: used') : t('決鬥：白天發言階段可發動', 'Duel: usable during daytime speeches'));
       break;
     case 'fox':
-      out.push(rs.foxLost ? '技能：已失去' : '技能：可用');
+      out.push(rs.foxLost ? t('技能：已失去', 'Ability: lost') : t('技能：可用', 'Ability: available'));
       break;
     case 'elder':
-      out.push(rs.elderLives > 0 ? '還能抵擋一次狼人襲擊' : '已經無法再抵擋襲擊');
+      out.push(
+        rs.elderLives > 0
+          ? t('還能抵擋一次狼人襲擊', 'Can still survive one werewolf attack')
+          : t('已經無法再抵擋襲擊', 'Can no longer survive an attack'),
+      );
       break;
     case 'magician':
-      if (rs.magicianUsed.length) out.push(`已交換過：${seats(s, rs.magicianUsed)}`);
+      if (rs.magicianUsed.length) out.push(t(`已交換過：${seats(s, rs.magicianUsed)}`, `Already swapped: ${seats(s, rs.magicianUsed)}`));
       break;
     case 'wildChild':
-      if (rs.wildModel) out.push(`榜樣：${tag(s, rs.wildModel)}`);
-      if (rs.wildTurned) out.push('🐺 榜樣已死，你現在是狼人');
+      if (rs.wildModel) out.push(t(`榜樣：${tag(s, rs.wildModel)}`, `Role model: ${tag(s, rs.wildModel)}`));
+      if (rs.wildTurned) out.push(t('🐺 榜樣已死，你現在是狼人', '🐺 Your role model is dead — you are now a werewolf'));
       break;
     case 'halfBlood':
-      if (rs.halfModel) out.push(`認親對象：${tag(s, rs.halfModel)}`);
+      if (rs.halfModel) out.push(t(`認親對象：${tag(s, rs.halfModel)}`, `Kin: ${tag(s, rs.halfModel)}`));
       break;
     case 'hunter':
     case 'wolfKing':
-      out.push('出局時可以開槍（被毒死則無法）');
+      out.push(t('出局時可以開槍（被毒死則無法）', 'You may shoot when eliminated (not if poisoned)'));
       break;
     case 'idiot':
-      if (me.revealed) out.push('已翻牌，失去投票權');
+      if (me.revealed) out.push(t('已翻牌，失去投票權', 'Revealed — you can no longer vote'));
       break;
     case 'piper':
-      out.push(rs.enchanted.length ? `已魅惑：${seats(s, rs.enchanted)}` : '尚未魅惑任何人');
+      out.push(
+        rs.enchanted.length
+          ? t(`已魅惑：${seats(s, rs.enchanted)}`, `Enchanted: ${seats(s, rs.enchanted)}`)
+          : t('尚未魅惑任何人', 'Nobody enchanted yet'),
+      );
       break;
     case 'hiddenWolf':
     case 'gargoyle':
-      if (me.alive && wolfPack(s).some((p) => p.id === me.id)) out.push('狼隊友已全數出局，你獲得襲擊能力');
+      if (me.alive && wolfPack(s).some((p) => p.id === me.id)) {
+        out.push(t('狼隊友已全數出局，你獲得襲擊能力', 'All your fellow wolves are out — you now make the attack'));
+      }
       break;
   }
-  if (ROLES[me.role].kind === 'god' && rs.goodSealed) out.push('⚠️ 你的技能已被永久封印');
+  if (ROLES[me.role].kind === 'god' && rs.goodSealed) out.push(t('⚠️ 你的技能已被永久封印', '⚠️ Your ability is permanently sealed'));
   const lv = rs.lovers;
+  const mixed = rs.loversMixed ? t('（人狼戀・第三方）', ' (human–wolf couple · third party)') : '';
   if (lv && lv.includes(me.id)) {
     const other = lv[0] === me.id ? lv[1] : lv[0];
-    out.push(`💘 情侶：${tag(s, other)}${rs.loversMixed ? '（人狼戀・第三方）' : ''}`);
+    out.push(t(`💘 情侶：${tag(s, other)}${mixed}`, `💘 Lover: ${tag(s, other)}${mixed}`));
   } else if (lv && rs.cupid === me.id) {
-    out.push(`💘 你牽的情侶：${seats(s, lv)}${rs.loversMixed ? '（人狼戀・第三方）' : ''}`);
+    out.push(t(`💘 你牽的情侶：${seats(s, lv)}${mixed}`, `💘 Your lovers: ${seats(s, lv)}${mixed}`));
   }
-  if (rs.enchanted.includes(me.id)) out.push('🎶 你已被吹笛者魅惑');
-  if (s.sheriff === me.id) out.push('⭐ 你是警長（放逐投票 1.5 票）');
-  if (!s.isNight && rs.silenced === me.id && me.alive) out.push('🤐 你今天被禁言');
-  if (rs.doomed === me.id) out.push('🩸 你將在下個天亮後出局');
+  if (rs.enchanted.includes(me.id)) out.push(t('🎶 你已被吹笛者魅惑', '🎶 You have been enchanted by the Piper'));
+  if (s.sheriff === me.id) out.push(t('⭐ 你是警長（放逐投票 1.5 票）', '⭐ You are the sheriff (1.5 votes in exile votes)'));
+  if (!s.isNight && rs.silenced === me.id && me.alive) out.push(t('🤐 你今天被禁言', '🤐 You are silenced today'));
+  if (rs.doomed === me.id) out.push(t('🩸 你將在下個天亮後出局', '🩸 You will be eliminated after the next dawn'));
   return out;
 }
 
@@ -106,55 +122,75 @@ function stageView(s: GameState): StageView {
     narration: '',
   };
   if (s.phase === 'lobby') {
-    return { ...base, t: 'lobby', night: true, deadline: null, title: '等待玩家加入', sub: '房主設定完成後即可開始' };
+    return {
+      ...base,
+      t: 'lobby',
+      night: true,
+      deadline: null,
+      title: t('等待玩家加入', 'Waiting for players'),
+      sub: t('房主設定完成後即可開始', 'The game starts once the host is ready'),
+    };
   }
   const st = s.stage;
   if (s.phase === 'ended' || !st) {
-    const camp = s.winner ? CAMP_NAME[s.winner.camp] : '';
+    const win = s.winner ? loc(WIN_TITLE[s.winner.camp]) : '';
     return {
       ...base,
       t: 'ended',
       night: false,
       deadline: null,
-      title: s.winner ? `${camp}獲勝` : '遊戲結束',
-      sub: s.winner?.reason ?? '',
-      narration: s.winner ? `遊戲結束，${camp}獲勝。` : '',
+      title: s.winner ? win : t('遊戲結束', 'Game Over'),
+      sub: s.winner ? loc(s.winner.reason) : '',
+      narration: s.winner ? t(`遊戲結束，${win}。`, `Game over. ${win}.`) : '',
     };
   }
   const who = (id: string) => {
     const p = P(s, id);
-    return `${p.seat}號 ${p.name}`;
+    return `${tag(s, id)} ${p.name}`;
   };
   const no = (id: string) => P(s, id).seat;
 
   switch (st.t) {
     case 'deal':
-      return { ...base, t: 'deal', title: '發牌', sub: '請確認你的身分', narration: '遊戲開始，請確認你的身分。' };
-    case 'night':
+      return {
+        ...base,
+        t: 'deal',
+        title: t('發牌', 'Dealing'),
+        sub: t('請確認你的身分', 'Check your role'),
+        narration: t('遊戲開始，請確認你的身分。', 'The game begins. Please check your role.'),
+      };
+    case 'night': {
+      const name = loc(stepName(st.step));
+      const nightfall = s.night?.idx === 0;
       return {
         ...base,
         t: 'night',
         step: st.step,
-        title: `第 ${s.day} 夜`,
-        sub: `${STEP_NAME[st.step]}請睜眼`,
-        narration: `${s.night?.idx === 0 ? '天黑請閉眼。' : ''}${NARRATION[st.step]}`,
+        nightfall,
+        title: t(`第 ${s.day} 夜`, `Night ${s.day}`),
+        sub: t(`${name}請睜眼`, `${name}, open your eyes`),
+        narration: `${nightfall ? t('天黑請閉眼。', 'Night falls. Everyone, close your eyes. ') : ''}${loc(NARRATION[st.step])}`,
       };
+    }
     case 'signup':
       return {
         ...base,
         t: 'signup',
-        title: '警長競選',
-        sub: '請決定是否上警',
-        narration: '天亮了。現在開始警長競選，想競選警長的玩家請上警。',
+        title: t('警長競選', 'Sheriff Election'),
+        sub: t('請決定是否上警', 'Decide whether to run'),
+        narration: t(
+          '天亮了。現在開始警長競選，想競選警長的玩家請上警。',
+          'Day breaks. The sheriff election begins. If you want to be sheriff, step forward.',
+        ),
         signed: Object.keys(st.choice),
       };
     case 'speech': {
       const sp = st.order[st.idx];
       const title = {
-        day: `第 ${s.day} 天・發言`,
-        pk: 'PK 發言',
-        sheriff: '警長競選發言',
-        sheriffPk: '警長 PK 發言',
+        day: t(`第 ${s.day} 天・發言`, `Day ${s.day} · Speeches`),
+        pk: t('PK 發言', 'Runoff Speeches'),
+        sheriff: t('警長競選發言', 'Sheriff Campaign Speeches'),
+        sheriffPk: t('警長 PK 發言', 'Sheriff Runoff Speeches'),
       }[st.kind];
       return {
         ...base,
@@ -164,8 +200,8 @@ function stageView(s: GameState): StageView {
         order: st.order,
         idx: st.idx,
         title,
-        sub: `${who(sp)} 發言中`,
-        narration: `請 ${no(sp)} 號玩家發言。`,
+        sub: t(`${who(sp)} 發言中`, `${who(sp)} is speaking`),
+        narration: t(`請 ${no(sp)} 號玩家發言。`, `Player ${no(sp)}, please speak.`),
       };
     }
     case 'vote': {
@@ -177,17 +213,33 @@ function stageView(s: GameState): StageView {
         candidates: st.candidates,
         voters: st.voters,
         voted: Object.keys(st.votes),
-        title: st.kind === 'sheriff' ? (st.round === 2 ? '警長 PK 投票' : '警長投票') : st.round === 2 ? 'PK 投票' : '放逐投票',
-        sub: `已投票 ${n} / ${st.voters.length}`,
-        narration: st.kind === 'sheriff' ? '請投票選出警長。' : st.round === 2 ? '請再次投票。' : '發言結束，請投票。',
+        title:
+          st.kind === 'sheriff'
+            ? st.round === 2
+              ? t('警長 PK 投票', 'Sheriff Runoff Vote')
+              : t('警長投票', 'Sheriff Vote')
+            : st.round === 2
+              ? t('PK 投票', 'Runoff Vote')
+              : t('放逐投票', 'Exile Vote'),
+        sub: t(`已投票 ${n} / ${st.voters.length}`, `Voted ${n} / ${st.voters.length}`),
+        narration:
+          st.kind === 'sheriff'
+            ? t('請投票選出警長。', 'Please vote for a sheriff.')
+            : st.round === 2
+              ? t('請再次投票。', 'Please vote again.')
+              : t('發言結束，請投票。', 'The speeches are over. Please vote.'),
       };
     }
     case 'voteResult': {
       const { top } = st;
       let sub: string;
-      if (top.length === 1) sub = st.kind === 'sheriff' ? `${who(top[0])} 當選警長` : `${who(top[0])} 得票最高`;
-      else if (top.length === 0) sub = '沒有人得票';
-      else sub = `${seats(s, top)} 平票`;
+      if (top.length === 1) {
+        sub =
+          st.kind === 'sheriff'
+            ? t(`${who(top[0])} 當選警長`, `${who(top[0])} is elected sheriff`)
+            : t(`${who(top[0])} 得票最高`, `${who(top[0])} has the most votes`);
+      } else if (top.length === 0) sub = t('沒有人得票', 'Nobody received a vote');
+      else sub = t(`${seats(s, top)} 平票`, `${seats(s, top)} are tied`);
       return {
         ...base,
         t: 'voteResult',
@@ -195,16 +247,16 @@ function stageView(s: GameState): StageView {
         votes: st.votes,
         tally: st.tally,
         top,
-        title: '投票結果',
+        title: t('投票結果', 'Vote Results'),
         sub,
         narration:
           top.length === 1
             ? st.kind === 'sheriff'
-              ? `${no(top[0])} 號玩家當選警長。`
-              : `${no(top[0])} 號玩家得票最高。`
+              ? t(`${no(top[0])} 號玩家當選警長。`, `Player ${no(top[0])} is elected sheriff.`)
+              : t(`${no(top[0])} 號玩家得票最高。`, `Player ${no(top[0])} has the most votes.`)
             : top.length === 0
-              ? '沒有人得票。'
-              : '平票。',
+              ? t('沒有人得票。', 'Nobody received a vote.')
+              : t('平票。', 'It is a tie.'),
       };
     }
     case 'announce': {
@@ -213,9 +265,12 @@ function stageView(s: GameState): StageView {
         ...base,
         t: 'announce',
         deaths: d,
-        title: `第 ${s.day} 天・天亮了`,
-        sub: d.length ? `昨夜出局：${seats(s, d)}` : '昨夜是平安夜',
-        narration: `天亮了。${d.length ? `昨夜出局的是 ${d.map(no).join('、')} 號玩家。` : '昨夜是平安夜。'}${st.bear ? '熊咆哮了。' : ''}`,
+        title: t(`第 ${s.day} 天・天亮了`, `Day ${s.day} · Dawn`),
+        sub: d.length ? t(`昨夜出局：${seats(s, d)}`, `Eliminated last night: ${seats(s, d)}`) : t('昨夜是平安夜', 'A peaceful night'),
+        narration: t(
+          `天亮了。${d.length ? `昨夜出局的是 ${d.map(no).join('、')} 號玩家。` : '昨夜是平安夜。'}${st.bear ? '熊咆哮了。' : ''}`,
+          `Day breaks. ${d.length ? `Last night we lost player${d.length > 1 ? 's' : ''} ${d.map(no).join(', ')}.` : 'It was a peaceful night.'}${st.bear ? ' The Bear growled.' : ''}`,
+        ),
       };
     }
     case 'trigger': {
@@ -224,9 +279,15 @@ function stageView(s: GameState): StageView {
         ...base,
         t: 'trigger',
         actor: st.trig.id,
-        title: shoot ? '技能發動' : '移交警徽',
-        sub: `等待 ${who(st.trig.id)} ${shoot ? '決定是否發動技能' : '移交警徽'}`,
-        narration: `請 ${no(st.trig.id)} 號玩家${shoot ? '決定是否發動技能。' : '移交警徽。'}`,
+        title: shoot ? t('技能發動', 'Ability') : t('移交警徽', 'Pass the Badge'),
+        sub: t(
+          `等待 ${who(st.trig.id)} ${shoot ? '決定是否發動技能' : '移交警徽'}`,
+          `Waiting for ${who(st.trig.id)} to ${shoot ? 'decide whether to use their ability' : 'pass on the badge'}`,
+        ),
+        narration: t(
+          `請 ${no(st.trig.id)} 號玩家${shoot ? '決定是否發動技能。' : '移交警徽。'}`,
+          `Player ${no(st.trig.id)}, please ${shoot ? 'decide whether to use your ability.' : 'pass on the badge.'}`,
+        ),
       };
     }
     case 'lastWords':
@@ -234,18 +295,18 @@ function stageView(s: GameState): StageView {
         ...base,
         t: 'lastWords',
         speaker: st.id,
-        title: '遺言',
-        sub: `${who(st.id)} 發表遺言`,
-        narration: `請 ${no(st.id)} 號玩家發表遺言。`,
+        title: t('遺言', 'Last Words'),
+        sub: t(`${who(st.id)} 發表遺言`, `${who(st.id)} gives their last words`),
+        narration: t(`請 ${no(st.id)} 號玩家發表遺言。`, `Player ${no(st.id)}, please give your last words.`),
       };
     case 'order':
       return {
         ...base,
         t: 'order',
         actor: s.sheriff ?? undefined,
-        title: '發言順序',
-        sub: '等待警長決定發言順序',
-        narration: '請警長決定發言順序。',
+        title: t('發言順序', 'Speaking Order'),
+        sub: t('等待警長決定發言順序', 'Waiting for the sheriff to decide the speaking order'),
+        narration: t('請警長決定發言順序。', 'Sheriff, please decide the speaking order.'),
       };
   }
 }
@@ -255,8 +316,12 @@ export function findByToken(s: GameState, token: string | null | undefined): Pla
   return s.players.find((p) => !p.isBot && p.token === token) ?? null;
 }
 
-/** 產生單一玩家可見的遊戲畫面，隱藏所有他不該知道的資訊 */
-export function viewFor(s: GameState, token: string | null, version: number, now: number): ClientView {
+/** 產生單一玩家可見的遊戲畫面，隱藏所有他不該知道的資訊；文字使用該玩家選擇的語言 */
+export function viewFor(s: GameState, token: string | null, version: number, now: number, lang: Lang = curLang()): ClientView {
+  return withLang(lang, () => buildView(s, token, version, now));
+}
+
+function buildView(s: GameState, token: string | null, version: number, now: number): ClientView {
   const me = findByToken(s, token);
   const ended = s.phase === 'ended';
   const playing = s.phase === 'playing';
@@ -309,6 +374,7 @@ export function viewFor(s: GameState, token: string | null, version: number, now
     code: s.code,
     version,
     now,
+    lang: curLang(),
     phase: s.phase,
     hostId: s.hostId,
     gameNo: s.gameNo,
@@ -321,14 +387,14 @@ export function viewFor(s: GameState, token: string | null, version: number, now
     stage,
     prompt,
     skills: me && playing ? getSkills(s, me.id) : [],
-    log: s.log,
-    priv: me ? (s.priv[me.id] ?? []) : [],
-    chat,
+    log: s.log.map((l) => ({ ...l, text: loc(l.text) })),
+    priv: me ? (s.priv[me.id] ?? []).map((l) => ({ ...l, text: loc(l.text) })) : [],
+    chat: chat.map((m) => ({ ...m, text: loc(m.text) })),
     channels: me ? channelsFor(s, me.id) : [],
     sheriffState: s.sheriffState,
     election: s.election ? { candidates: s.election.candidates, withdrawn: s.election.withdrawn } : null,
     silenced: playing && !s.isNight ? s.rs.silenced : null,
-    winner: s.winner,
+    winner: s.winner && { ...s.winner, reason: loc(s.winner.reason) },
     startError: s.phase === 'lobby' ? startError(s) : null,
   };
 }

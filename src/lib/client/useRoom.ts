@@ -1,26 +1,28 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { LANG_HEADER, type Lang, tr } from '@/game/i18n';
 import type { ClientAction, ClientView, Profile } from '@/game/types';
+import { useLang } from './lang';
 import { clearToken, getToken, setToken } from './storage';
 
 export type RoomStatus = 'loading' | 'ready' | 'notfound';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function post<T>(url: string, body: unknown): Promise<T> {
+async function post<T>(url: string, body: unknown, lang: Lang): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', [LANG_HEADER]: lang },
     body: JSON.stringify(body),
   });
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(data.error ?? '連線發生問題，請再試一次');
+  if (!res.ok) throw new Error(data.error ?? tr(lang, '連線發生問題，請再試一次', 'Connection problem — please try again'));
   return data;
 }
 
-export async function createRoom(profile: Profile): Promise<string> {
-  const data = await post<{ code: string; token: string }>('/api/rooms', profile);
+export async function createRoom(profile: Profile, lang: Lang): Promise<string> {
+  const data = await post<{ code: string; token: string }>('/api/rooms', profile, lang);
   setToken(data.code, data.token);
   return data.code;
 }
@@ -31,11 +33,15 @@ export function useRoom(code: string) {
   const [status, setStatus] = useState<RoomStatus>('loading');
   const [token, setTok] = useState<string | null>(null);
   const [online, setOnline] = useState(true);
+  const { lang } = useLang();
+  const langNow = useRef(lang);
+  langNow.current = lang;
   const version = useRef(0);
   const offset = useRef(0);
 
   const accept = useCallback((v: ClientView) => {
-    if (v.version < version.current) return;
+    // 切換語言前送出的請求，回來的畫面還是舊語言，直接丟棄
+    if (v.version < version.current || v.lang !== langNow.current) return;
     version.current = v.version;
     offset.current = v.now - Date.now();
     setView(v);
@@ -53,6 +59,7 @@ export function useRoom(code: string) {
     if (!loaded) return;
     let stop = false;
     const ctrl = new AbortController();
+    // 換了身分或語言時，從頭取得完整的畫面
     version.current = 0;
     (async () => {
       let fails = 0;
@@ -61,7 +68,7 @@ export function useRoom(code: string) {
           const res = await fetch(`/api/rooms/${code}?v=${version.current}`, {
             signal: ctrl.signal,
             cache: 'no-store',
-            headers: token ? { 'x-ww-token': token } : undefined,
+            headers: { [LANG_HEADER]: lang, ...(token && { 'x-ww-token': token }) },
           });
           if (stop) return;
           if (res.status === 404) {
@@ -84,23 +91,23 @@ export function useRoom(code: string) {
       stop = true;
       ctrl.abort();
     };
-  }, [code, token, loaded, accept]);
+  }, [code, token, loaded, lang, accept]);
 
   const send = useCallback(
     async (action: ClientAction) => {
-      const data = await post<{ view: ClientView }>(`/api/rooms/${code}/action`, { token, action });
+      const data = await post<{ view: ClientView }>(`/api/rooms/${code}/action`, { token, action }, lang);
       accept(data.view);
     },
-    [code, token, accept],
+    [code, token, lang, accept],
   );
 
   const join = useCallback(
     async (profile: Profile) => {
-      const data = await post<{ token: string }>(`/api/rooms/${code}/join`, { ...profile, token });
+      const data = await post<{ token: string }>(`/api/rooms/${code}/join`, { ...profile, token }, lang);
       setToken(code, data.token);
       setTok(data.token);
     },
-    [code, token],
+    [code, token, lang],
   );
 
   const forget = useCallback(() => {

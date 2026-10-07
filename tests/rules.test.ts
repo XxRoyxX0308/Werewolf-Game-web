@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { act, getPrompt, getSkills } from '../src/game/engine';
 import type { Stage } from '../src/game/types';
+import { withLang } from '../src/game/i18n';
 import { viewFor } from '../src/game/view';
 import { type NightStage, adv, alive, hasLog, hasPriv, id, mk, nact, night, now, seat, skill, stageT, until, vote, wk } from './helpers';
 
@@ -441,6 +442,23 @@ test('玩家畫面不會洩漏他人的身分或金鑰', () => {
   assert.equal(anon.meId, null);
   assert.equal(anon.players.filter((p) => p.role).length, 0);
   assert.equal(viewFor(s, '', 1, now()).meId, null, '空金鑰不能冒充電腦玩家');
+});
+
+test('同一場遊戲，每位玩家看到的是自己選的語言', () => {
+  const s = mk(['werewolf', 'seer', 'villager', 'villager', 'villager']);
+  night(s, { wolves: wk(3), seer: (g) => nact(g, 2, 'check', 1) });
+  const token = seat(s, 2).token;
+  const zh = viewFor(s, token, 1, now(), 'zh');
+  const en = viewFor(s, token, 1, now(), 'en');
+  assert.equal(zh.lang, 'zh');
+  assert.equal(en.lang, 'en');
+  assert.ok(zh.priv.some((p) => p.text.includes('1號 是狼人')));
+  assert.ok(en.priv.some((p) => p.text.includes('#1 is a werewolf')));
+  assert.ok(zh.log.some((l) => l.text.includes('第 1 夜')));
+  assert.ok(en.log.some((l) => l.text.includes('Night 1')));
+  assert.notEqual(zh.stage.title, en.stage.title);
+  // 錯誤訊息使用發出操作的人的語言
+  assert.throws(() => withLang('en', () => act(s, id(s, 2), 'night:seer', 'check', [id(s, 1)], now())), /cannot do that/);
 });
 
 test('夜晚行動的輸入驗證', () => {

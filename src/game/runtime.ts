@@ -15,6 +15,7 @@ import {
   startGame,
   updateProfile,
 } from './engine';
+import { t } from './i18n';
 import type { ClientAction, GameState } from './types';
 
 /** 推進時間：處理電腦玩家行動與逾時。回傳狀態是否有變化 */
@@ -39,19 +40,19 @@ export function tick(s: GameState, now: number): boolean {
 /** 下一次需要被喚醒處理的時間點 */
 export function wakeAt(s: GameState): number | null {
   if (s.phase !== 'playing') return null;
-  let t = s.deadline ?? Infinity;
+  let at = s.deadline ?? Infinity;
   const b = nextBotTime(s);
-  if (b !== null) t = Math.min(t, b);
-  return Number.isFinite(t) ? t : null;
+  if (b !== null) at = Math.min(at, b);
+  return Number.isFinite(at) ? at : null;
 }
 
 export function dispatch(s: GameState, pid: string, a: ClientAction, now: number): void {
   P(s, pid);
   const host = () => {
-    if (s.hostId !== pid) throw new GameError('只有房主可以進行這個操作');
+    if (s.hostId !== pid) throw new GameError(t('只有房主可以進行這個操作', 'Only the host can do that'));
   };
   const lobby = () => {
-    if (s.phase !== 'lobby') throw new GameError('遊戲進行中無法變更設定');
+    if (s.phase !== 'lobby') throw new GameError(t('遊戲進行中無法變更設定', 'Settings cannot be changed during a game'));
   };
   switch (a.type) {
     case 'profile':
@@ -91,6 +92,6 @@ export function dispatch(s: GameState, pid: string, a: ClientAction, now: number
     case 'chat':
       return sendChat(s, pid, a.ch, a.text, now);
     default:
-      throw new GameError('未知的操作');
+      throw new GameError(t('未知的操作', 'Unknown action'));
   }
 }

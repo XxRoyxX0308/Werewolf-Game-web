@@ -1,6 +1,7 @@
 'use client';
 
 import type { ClientAction, ClientView } from '@/game/types';
+import { useLang } from '@/lib/client/lang';
 import type { Chip } from '../scene/Figure';
 import { Button, SeatDot, cls } from '../ui';
 
@@ -26,6 +27,7 @@ interface Props {
 
 /** 玩家名單：號碼、顏色、頭像與 3D 場景完全對應，滑過會互相高亮 */
 export function Roster({ view, chips, selectable, selected, hovered, onPick, onHover, send }: Props) {
+  const { t } = useLang();
   const lobby = view.phase === 'lobby';
   const isHost = view.meId === view.hostId;
   const players = [...view.players].sort((a, b) => a.seat - b.seat);
@@ -34,8 +36,12 @@ export function Roster({ view, chips, selectable, selected, hovered, onPick, onH
   return (
     <div className="panel flex min-h-0 flex-1 flex-col">
       <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
-        <span className="text-sm font-black text-white">玩家名單</span>
-        <span className="text-xs font-bold text-white/50">{lobby ? `${players.length} 人` : `存活 ${aliveCount} / ${players.length}`}</span>
+        <span className="text-sm font-black text-white">{t('玩家名單', 'Players')}</span>
+        <span className="text-xs font-bold text-white/50">
+          {lobby
+            ? t(`${players.length} 人`, `${players.length} ${players.length === 1 ? 'player' : 'players'}`)
+            : t(`存活 ${aliveCount} / ${players.length}`, `Alive ${aliveCount} / ${players.length}`)}
+        </span>
       </div>
       <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
         {players.map((p) => {
@@ -68,7 +74,7 @@ export function Roster({ view, chips, selectable, selected, hovered, onPick, onH
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1">
                     <span className={cls('truncate text-sm font-bold text-white', !p.alive && 'line-through')}>{p.name}</span>
-                    {p.sheriff && <span title="警長">⭐</span>}
+                    {p.sheriff && <span title={t('警長', 'Sheriff')}>⭐</span>}
                   </div>
                   {(chips[p.id]?.length ?? 0) > 0 && (
                     <div className="mt-0.5 flex flex-wrap gap-1">
@@ -83,7 +89,7 @@ export function Roster({ view, chips, selectable, selected, hovered, onPick, onH
                 {lobby && isHost && !p.isMe && (
                   <button
                     type="button"
-                    title="移出房間"
+                    title={t('移出房間', 'Remove from the room')}
                     onClick={(e) => {
                       e.stopPropagation();
                       send({ type: 'kick', id: p.id });
@@ -101,14 +107,18 @@ export function Roster({ view, chips, selectable, selected, hovered, onPick, onH
       {lobby && isHost && (
         <div className="flex gap-2 border-t border-white/10 p-2">
           <Button size="sm" className="flex-1" onClick={() => send({ type: 'addBot' })} disabled={players.length >= 18}>
-            🤖 加入電腦
+            {t('🤖 加入電腦', '🤖 Add bot')}
           </Button>
           <Button size="sm" className="flex-1" onClick={() => send({ type: 'shuffle' })}>
-            🔀 隨機座位
+            {t('🔀 隨機座位', '🔀 Shuffle seats')}
           </Button>
         </div>
       )}
-      {!lobby && view.meId && <div className="border-t border-white/10 px-3 py-1.5 text-[11px] text-white/45">點擊玩家可以加上只有你看得到的標記</div>}
+      {!lobby && view.meId && (
+        <div className="border-t border-white/10 px-3 py-1.5 text-[11px] text-white/45">
+          {t('點擊玩家可以加上只有你看得到的標記', 'Click a player to add a mark only you can see')}
+        </div>
+      )}
     </div>
   );
 }

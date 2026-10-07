@@ -1,6 +1,8 @@
 'use client';
 
+import { seatTag } from '@/game/i18n';
 import type { ClientView, Prompt } from '@/game/types';
+import { useLang } from '@/lib/client/lang';
 import { Button, PlayerTag, SeatText, cls } from '../ui';
 
 interface Props {
@@ -18,31 +20,33 @@ interface Props {
   onClear: () => void;
 }
 
-function waitingText(view: ClientView): string {
+function waitingText(view: ClientView, t: (zh: string, en: string) => string): string {
   const st = view.stage;
   const me = view.players.find((p) => p.isMe);
-  if (!view.meId) return '觀戰中';
+  if (!view.meId) return t('觀戰中', 'Spectating');
   switch (st.t) {
     case 'deal':
-      return '請確認你的身分，天黑後遊戲開始';
+      return t('請確認你的身分，天黑後遊戲開始', 'Check your role — the game starts at nightfall');
     case 'night':
-      return me?.alive ? '🌙 天黑請閉眼，等待其他玩家行動…' : '你已出局，靜靜觀看這個夜晚';
+      return me?.alive
+        ? t('🌙 天黑請閉眼，等待其他玩家行動…', '🌙 Night has fallen. Waiting for other players to act…')
+        : t('你已出局，靜靜觀看這個夜晚', 'You are out — quietly watch the night unfold');
     case 'signup':
-      return '等待其他玩家決定是否上警…';
+      return t('等待其他玩家決定是否上警…', 'Waiting for the others to decide whether to run…');
     case 'speech':
-      return st.speaker === view.meId ? '輪到你發言了' : '請聆聽發言';
+      return st.speaker === view.meId ? t('輪到你發言了', 'It is your turn to speak') : t('請聆聽發言', 'Listen to the speech');
     case 'lastWords':
-      return st.speaker === view.meId ? '請留下你的遺言' : '請聆聽遺言';
+      return st.speaker === view.meId ? t('請留下你的遺言', 'Leave your last words') : t('請聆聽遺言', 'Listen to the last words');
     case 'vote':
-      return '等待投票結果…';
+      return t('等待投票結果…', 'Waiting for the vote…');
     case 'voteResult':
-      return '公布票型中…';
+      return t('公布票型中…', 'Revealing the votes…');
     case 'announce':
-      return '法官公布昨夜的情況';
+      return t('法官公布昨夜的情況', 'The moderator announces what happened last night');
     case 'trigger':
-      return '等待出局玩家行動…';
+      return t('等待出局玩家行動…', 'Waiting for the eliminated player to act…');
     case 'order':
-      return '等待警長決定發言順序…';
+      return t('等待警長決定發言順序…', 'Waiting for the sheriff to decide the speaking order…');
     default:
       return '';
   }
@@ -50,6 +54,7 @@ function waitingText(view: ClientView): string {
 
 /** 畫面下方的行動面板：顯示輪到自己時可以做的事 */
 export function ActionPanel({ view, active, isSkill, selected, busy, onSubmit, onDirect, onOpenSkill, onCancelSkill, onClear }: Props) {
+  const { lang, t } = useLang();
   const byId = new Map(view.players.map((p) => [p.id, p]));
   const prompt = view.prompt;
   const needs = !!active?.options.some((o) => o.needsTargets);
@@ -99,20 +104,21 @@ export function ActionPanel({ view, active, isSkill, selected, busy, onSubmit, o
               </div>
               {isSkill && (
                 <button onClick={onCancelSkill} className="shrink-0 rounded-lg px-2 py-1 text-sm text-white/60 hover:bg-white/10 hover:text-white">
-                  取消
+                  {t('取消', 'Cancel')}
                 </button>
               )}
             </div>
 
             {picks && Object.keys(picks).length > 0 && (
               <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 rounded-lg bg-blood/15 px-2.5 py-1.5 text-xs text-white/85">
-                <span className="font-black text-blood-soft">狼隊選擇</span>
-                {Object.entries(picks).map(([w, t]) => {
+                <span className="font-black text-blood-soft">{t('狼隊選擇', "Wolves' picks")}</span>
+                {Object.entries(picks).map(([w, target]) => {
                   const wolf = byId.get(w);
-                  const tgt = t ? byId.get(t) : null;
+                  const tgt = target ? byId.get(target) : null;
                   return (
                     <span key={w}>
-                      <SeatText text={`${wolf?.seat}號`} players={view.players} />→{tgt ? <SeatText text={`${tgt.seat}號`} players={view.players} /> : ' 空刀'}
+                      <SeatText text={wolf ? seatTag(lang, wolf.seat) : '?'} players={view.players} />→
+                      {tgt ? <SeatText text={seatTag(lang, tgt.seat)} players={view.players} /> : t(' 空刀', ' no kill')}
                     </span>
                   );
                 })}
@@ -132,12 +138,17 @@ export function ActionPanel({ view, active, isSkill, selected, busy, onSubmit, o
                       ) : null;
                     })}
                     <button onClick={onClear} className="text-xs text-white/50 hover:text-white">
-                      清除
+                      {t('清除', 'Clear')}
                     </button>
                   </>
                 ) : (
                   <span className="text-white/50">
-                    👆 點選場景中的玩家或左側名單（{active.min === active.max ? `選 ${active.min} 人` : `選 ${active.min}–${active.max} 人`}）
+                    {active.min === active.max
+                      ? t(`👆 點選場景中的玩家或左側名單（選 ${active.min} 人）`, `👆 Pick a player in the scene or from the list (choose ${active.min})`)
+                      : t(
+                          `👆 點選場景中的玩家或左側名單（選 ${active.min}–${active.max} 人）`,
+                          `👆 Pick players in the scene or from the list (choose ${active.min}–${active.max})`,
+                        )}
                   </span>
                 )}
               </div>
@@ -165,7 +176,7 @@ export function ActionPanel({ view, active, isSkill, selected, busy, onSubmit, o
             </div>
           </div>
         ) : (
-          <div className="text-center text-sm font-bold text-white/75">{waitingText(view)}</div>
+          <div className="text-center text-sm font-bold text-white/75">{waitingText(view, t)}</div>
         )}
       </div>
     </div>
