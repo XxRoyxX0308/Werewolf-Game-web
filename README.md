@@ -2,6 +2,8 @@
 
 3D 線上狼人殺。建立房間、把連結傳給朋友，就能遠端一起玩——系統自動擔任法官，不需要有人當上帝。
 
+**線上遊玩：<https://werewolf-game-web-brown.vercel.app/>**
+
 - **31 種角色**，可自由組合牌組，內建 15 種經典板子
 - **遠端連線**：4–18 人，手機與電腦都能玩，斷線重整後會回到原本的座位
 - **3D 村莊**：玩家圍著營火而坐，日夜交替、發言聚光、票型連線
@@ -26,31 +28,6 @@ npm run typecheck
 npm run build
 ```
 
-## 部署到 Vercel + Neon
-
-1. **把專案推上 GitHub**
-   ```bash
-   git init
-   git add .
-   git commit -m "狼人殺 Online"
-   git branch -M main
-   git remote add origin https://github.com/<你的帳號>/<repo>.git
-   git push -u origin main
-   ```
-2. **在 Vercel 匯入專案**：New Project → 選擇剛剛的 repo。框架會自動偵測為 Next.js，不需要改任何設定。
-3. **連接 Neon**：專案的 Storage 分頁 → Create Database → 選 Neon → 連接到這個專案。Vercel 會自動注入 `DATABASE_URL` 環境變數。
-4. **重新部署**一次讓環境變數生效。資料表 `ww_rooms` 會在第一次有人建立房間時自動建立，不需要手動跑 migration。
-
-> 建議把 Vercel Functions 的區域（Settings → Functions → Region）設成和 Neon 資料庫相同或相鄰的區域，操作反應會更即時。
-
-### 在本機連接 Neon（選用）
-
-把 `.env.example` 複製成 `.env.local`，填入 Neon 的連線字串（用 pooled 的那一條），然後：
-
-```bash
-npm run db:check   # 驗證連線、建表、讀寫與樂觀鎖
-npm run dev
-```
 
 ## 怎麼玩
 
