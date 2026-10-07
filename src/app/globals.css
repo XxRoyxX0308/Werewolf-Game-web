@@ -1,0 +1,248 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink-950: #05071a;
+  --color-ink-900: #0a0e24;
+  --color-ink-800: #121836;
+  --color-ink-700: #1c2550;
+  --color-ink-600: #2b3670;
+  --color-gold: #e9b949;
+  --color-gold-soft: #f6dc8f;
+  --color-blood: #c8372d;
+  --color-blood-soft: #ff8a7a;
+  --color-moon: #dfe7ff;
+  --color-good: #6fb6ff;
+  --color-third: #c79bff;
+  --font-display: 'Noto Serif TC', 'Songti TC', 'PMingLiU', serif;
+  --font-sans: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
+  --animate-rise: rise 0.35s ease-out both;
+  --animate-pop: pop 0.25s ease-out both;
+  --animate-glow: glow 2.2s ease-in-out infinite;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: scale(0.92);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  @keyframes glow {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgb(233 185 73 / 0.55);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgb(233 185 73 / 0);
+    }
+  }
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--color-ink-950);
+  color: var(--color-moon);
+  font-family: var(--font-sans);
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.18) transparent;
+}
+
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* 半透明玻璃面板 */
+.panel {
+  background: linear-gradient(180deg, rgb(18 24 54 / 0.86), rgb(8 11 30 / 0.9));
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 16px;
+  box-shadow:
+    0 12px 40px rgb(0 0 0 / 0.45),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.title-glow {
+  text-shadow:
+    0 0 24px rgb(233 185 73 / 0.45),
+    0 2px 0 rgb(0 0 0 / 0.6);
+}
+
+/* ───── 3D 場景中的玩家名牌 ───── */
+.np {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+  font-family: var(--font-sans);
+  transition:
+    opacity 0.3s,
+    transform 0.2s;
+}
+.np-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px 3px 3px;
+  border-radius: 999px;
+  background: rgb(6 9 26 / 0.86);
+  border: 2px solid var(--c);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.5);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+}
+.np-seat {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--c);
+  color: var(--on);
+  font-size: 16px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.np-avatar {
+  font-size: 19px;
+  line-height: 1;
+}
+.np-name {
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.np-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 220px;
+}
+.np-chip {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgb(255 255 255 / 0.16);
+  color: #fff;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  backdrop-filter: blur(4px);
+}
+.np-chip.wolf {
+  background: rgb(200 55 45 / 0.9);
+  border-color: #ff9a8a;
+}
+.np-chip.good {
+  background: rgb(40 110 200 / 0.9);
+  border-color: #9fd0ff;
+}
+.np-chip.gold {
+  background: rgb(233 185 73 / 0.95);
+  border-color: #fff0b8;
+  color: #2a1c00;
+}
+.np-chip.mark {
+  background: rgb(120 80 220 / 0.92);
+  border-color: #d3bfff;
+}
+.np-chip.pink {
+  background: rgb(236 72 153 / 0.92);
+  border-color: #ffc2e0;
+}
+.np-chip.dim {
+  background: rgb(20 26 54 / 0.9);
+  color: #c9d3ff;
+}
+.np.dead .np-main {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.np.dead .np-name {
+  text-decoration: line-through;
+}
+.np.me .np-main {
+  box-shadow:
+    0 0 0 3px rgb(255 255 255 / 0.85),
+    0 4px 14px rgb(0 0 0 / 0.5);
+}
+.np.speaking .np-main {
+  animation: glow 1.4s ease-in-out infinite;
+  border-color: #fff3b0;
+}
+.np.pick .np-main {
+  box-shadow:
+    0 0 0 3px var(--color-gold),
+    0 0 22px rgb(233 185 73 / 0.8);
+}
+.np.hover {
+  transform: scale(1.08);
+}
+
+/* ───── 身分牌翻轉 ───── */
+.flip {
+  perspective: 1200px;
+}
+.flip-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.flip.is-flipped .flip-inner {
+  transform: rotateY(180deg);
+}
+.flip-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-back {
+  transform: rotateY(180deg);
+}
+
+.card-back-pattern {
+  background:
+    radial-gradient(circle at 50% 50%, rgb(233 185 73 / 0.25) 0 18%, transparent 19%),
+    repeating-conic-gradient(from 0deg, rgb(233 185 73 / 0.1) 0deg 10deg, transparent 10deg 20deg),
+    linear-gradient(160deg, #1c2550, #0a0e24);
+}
+
+/* 夜晚閉眼時的暗角 */
+.night-veil {
+  background: radial-gradient(ellipse at 50% 55%, transparent 20%, rgb(2 3 14 / 0.72) 85%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
